@@ -161,11 +161,14 @@ class Install extends Base {
 				if ( isset( self::$install['is_private'] ) ) {
 					parent::$options[ self::$install['repo'] ] = 1;
 				}
-				if ( isset( self::$install['bitbucket_username'] ) ) {
-					parent::$options['bitbucket_username'] = self::$install['bitbucket_username'];
+				if ( isset( self::$install['bitbucket_consumer_key'] ) ) {
+					parent::$options['bitbucket_consumer_key'] = self::$install['bitbucket_consumer_key'];
 				}
-				if ( isset( self::$install['bitbucket_password'] ) ) {
-					parent::$options['bitbucket_password'] = self::$install['bitbucket_password'];
+				if ( isset( self::$install['bitbucket_consumer_secret'] ) ) {
+					parent::$options['bitbucket_consumer_secret'] = self::$install['bitbucket_consumer_secret'];
+				}
+				if ( isset( self::$install['bitbucket_auth_token'] ) ) {
+					parent::$options['bitbucket_auth_token'] = self::$install['bitbucket_auth_token'];
 				}
 
 				new Bitbucket_API( (object) $type );
@@ -356,15 +359,16 @@ class Install extends Base {
 		);
 
 		add_settings_field(
-			'github_access_token',
+			'bitbucket_consumer_key',
 			esc_html__( 'GitHub Access Token', 'github-updater' ),
 			array( &$this, 'github_access_token' ),
 			'github_updater_install_' . $type,
 			$type
 		);
 
-		if ( empty( parent::$options['bitbucket_username'] ) ||
-		     empty( parent::$options['bitbucket_password'] )
+		if ( empty( parent::$options['bitbucket_consumer_key'] ) ||
+		     empty( parent::$options['bitbucket_consumer_secret'] ) ||
+		     empty( parent::$options['bitbucket_auth_token'] )
 		) {
 			add_settings_field(
 				'bitbucket_username',
@@ -375,9 +379,17 @@ class Install extends Base {
 			);
 
 			add_settings_field(
-				'bitbucket_password',
+				'bitbucket_consumer_secret',
 				esc_html__( 'Bitbucket Password', 'github-updater' ),
 				array( &$this, 'bitbucket_password' ),
+				'github_updater_install_' . $type,
+				$type
+			);
+
+			add_settings_field(
+				'bitbucket_auth_token',
+				esc_html__( 'Bitbucket Username', 'github-updater' ),
+				array( &$this, 'bitbucket_username' ),
 				'github_updater_install_' . $type,
 				$type
 			);

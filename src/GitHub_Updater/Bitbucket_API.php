@@ -38,11 +38,14 @@ class Bitbucket_API extends API {
 
 		$this->load_hooks();
 
-		if ( ! isset( self::$options['bitbucket_username'] ) ) {
-			self::$options['bitbucket_username'] = null;
+		if ( ! isset( self::$options['bitbucket_consumer_key'] ) ) {
+			self::$options['bitbucket_consumer_key'] = null;
 		}
-		if ( ! isset( self::$options['bitbucket_password'] ) ) {
-			self::$options['bitbucket_password'] = null;
+		if ( ! isset( self::$options['bitbucket_consumer_secret'] ) ) {
+			self::$options['bitbucket_consumer_secret'] = null;
+		}
+		if ( ! isset( self::$options['bitbucket_auth_token'] ) ) {
+			self::$options['bitbucket_auth_token'] = null;
 		}
 		add_site_option( 'github_updater', self::$options );
 	}
@@ -87,7 +90,7 @@ class Bitbucket_API extends API {
 		if ( $this->validate_response( $response ) || ! is_array( $response ) ) {
 			return false;
 		}
-
+		
 		$response['dot_org'] = $this->get_dot_org_data();
 		$this->set_file_info( $response );
 
@@ -410,17 +413,37 @@ class Bitbucket_API extends API {
 		 * and abort if Bitbucket user/pass not set.
 		 */
 		if ( isset( $_POST['option_page'], $_POST['is_private'] ) &&
-		     'github_updater_install' === $_POST['option_page'] &&
-		     'bitbucket' === $_POST['github_updater_api'] &&
-		     ( ! empty( parent::$options['bitbucket_username'] ) || ! empty( parent::$options['bitbucket_password'] ) )
+			 'github_updater_install' === $_POST['option_page'] &&
+			 'bitbucket' === $_POST['github_updater_api'] &&
+			 ( ! empty( self::$options['bitbucket_auth_token'] ) )
 		) {
 			$bitbucket_private_install = true;
 		}
 
 		if ( $bitbucket_private || $bitbucket_private_install ) {
-			$username                         = parent::$options['bitbucket_username'];
-			$password                         = parent::$options['bitbucket_password'];
-			$args['headers']['Authorization'] = 'Basic ' . base64_encode( "$username:$password" );
+			$grant_type = isset(self::$options['bitbucket_refresh_token']) ? 'refresh_token' : 'authorization_code';
+			$post_fields = array(
+				"grant_type" => $grant_type, 
+				( ( $grant_type == 'authorization_code' ) ? 'code' : $grant_type ) => 
+				( ( $grant_type == 'authorization_code' ) ? self::$options['bitbucket_auth_token'] : self::$options['bitbucket_refresh_token'] )
+			);
+
+			$ch = curl_init();
+			curl_setopt( $ch, CURLOPT_URL, "https://bitbucket.org/site/oauth2/access_token" );
+			curl_setopt( $ch, CURLOPT_USERPWD, self::$options['bitbucket_consumer_key'] . ":" . self::$options['bitbucket_consumer_secret'] );
+			curl_setopt( $ch, CURLOPT_POST, 1 );
+			curl_setopt( $ch, CURLOPT_POSTFIELDS, http_build_query( $post_fields ) );
+			curl_setopt( $ch, CURLOPT_RETURNTRANSFER, 1 );
+			$data = curl_exec( $ch );
+			curl_close( $ch );
+
+			$data = json_decode($data);
+			if(!$data->error) {
+				self::$options['bitbucket_refresh_token'] = $data->refresh_token;
+				update_site_option( 'github_updater', self::$options );
+
+				$args['headers']['Authorization'] = 'Bearer ' . $data->access_token;
+			}
 		}
 
 		return $args;
@@ -475,15 +498,33 @@ class Bitbucket_API extends API {
 		}
 
 		if ( parent::is_doing_ajax() && ! parent::is_heartbeat() &&
-		     ( isset( $_POST['slug'] ) && array_key_exists( $_POST['slug'], self::$options ) &&
-		       1 == self::$options[ $_POST['slug'] ] &&
-		       false !== stristr( $url, $_POST['slug'] ) )
+			 ( isset( $_POST['slug'] ) && array_key_exists( $_POST['slug'], self::$options ) &&
+			   1 == self::$options[ $_POST['slug'] ] &&
+			   false !== stristr( $url, $_POST['slug'] ) )
 		) {
-			$username                         = self::$options['bitbucket_username'];
-			$password                         = self::$options['bitbucket_password'];
-			$args['headers']['Authorization'] = 'Basic ' . base64_encode( "$username:$password" );
+			$grant_type = isset(self::$options['bitbucket_refresh_token']) ? 'refresh_token' : 'authorization_code';
+			$post_fields = array(
+				"grant_type" => $grant_type, 
+				( ( $grant_type == 'authorization_code' ) ? 'code' : $grant_type ) => 
+				( ( $grant_type == 'authorization_code' ) ? self::$options['bitbucket_auth_token'] : self::$options['bitbucket_refresh_token'] )
+			);
 
-			return $args;
+			$ch = curl_init();
+			curl_setopt( $ch, CURLOPT_URL, "https://bitbucket.org/site/oauth2/access_token" );
+			curl_setopt( $ch, CURLOPT_USERPWD, self::$options['bitbucket_consumer_key'] . ":" . self::$options['bitbucket_consumer_secret'] );
+			curl_setopt( $ch, CURLOPT_POST, 1 );
+			curl_setopt( $ch, CURLOPT_POSTFIELDS, http_build_query( $post_fields ) );
+			curl_setopt( $ch, CURLOPT_RETURNTRANSFER, 1 );
+			$data = curl_exec( $ch );
+			curl_close( $ch );
+
+			$data = json_decode($data);
+			if(!$data->error) {
+				self::$options['bitbucket_refresh_token'] = $data->refresh_token;
+				update_site_option( 'github_updater', self::$options );
+
+				$args['headers']['Authorization'] = 'Bearer ' . $data->access_token;
+			}
 		}
 
 		return $args;

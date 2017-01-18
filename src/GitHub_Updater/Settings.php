@@ -98,12 +98,9 @@ class Settings extends Base {
 		$default_subtabs  = array(
 			'github_updater' => esc_html__( 'GitHub Updater', 'github-updater' ),
 			'github'         => esc_html__( 'GitHub', 'github-updater' ),
+			'bitbucket' => esc_html__( 'Bitbucket', 'github-updater' )
 		);
-		$bitbucket_subtab = array( 'bitbucket' => esc_html__( 'Bitbucket', 'github-updater' ) );
 		$gitlab_subtab    = array( 'gitlab' => esc_html__( 'GitLab', 'github-updater' ) );
-		if ( in_array( 'bitbucket', $gits ) ) {
-			$subtabs = array_merge( $subtabs, $bitbucket_subtab );
-		}
 		if ( in_array( 'gitlab', $gits ) ) {
 			$subtabs = array_merge( $subtabs, $gitlab_subtab );
 		}
@@ -432,22 +429,44 @@ class Settings extends Base {
 		);
 
 		add_settings_field(
-			'bitbucket_username',
-			esc_html__( 'Bitbucket Username', 'github-updater' ),
+			'bitbucket_consumer_key',
+			esc_html__( 'Bitbucket Consumer Key', 'github-updater' ),
 			array( &$this, 'token_callback_text' ),
 			'github_updater_bitbucket_install_settings',
 			'bitbucket_user',
-			array( 'id' => 'bitbucket_username' )
+			array( 'id' => 'bitbucket_consumer_key' )
 		);
 
 		add_settings_field(
-			'bitbucket_password',
-			esc_html__( 'Bitbucket Password', 'github-updater' ),
+			'bitbucket_consumer_secret',
+			esc_html__( 'Bitbucket Consumer Secret', 'github-updater' ),
 			array( &$this, 'token_callback_text' ),
 			'github_updater_bitbucket_install_settings',
 			'bitbucket_user',
-			array( 'id' => 'bitbucket_password', 'token' => true )
+			array( 'id' => 'bitbucket_consumer_secret', 'token' => true )
 		);
+
+		add_settings_field(
+			'bitbucket_auth_token',
+			esc_html__( 'Bitbucket Authorization Token', 'github-updater' ),
+			array( &$this, 'token_callback_text' ),
+			'github_updater_bitbucket_install_settings',
+			'bitbucket_user',
+			array( 'id' => 'bitbucket_auth_token' )
+		);
+
+		if(parent::$options['bitbucket_auth_token'] == null) {
+			add_settings_field(
+				'bitbucket_get_token',
+				esc_html__( 'Generate Authorization Token', 'github-updater' ),
+				array( &$this, 'token_callback_button' ),
+				'github_updater_bitbucket_install_settings',
+				'bitbucket_user',
+				array( 'id' => 'bitbucket_get_token', 
+					'title' => esc_html__( 'Get Token', 'github-updater' ),
+					'url' => 'https://bitbucket.org/site/oauth2/authorize?client_id=' . parent::$options[ 'bitbucket_consumer_key' ] . '&response_type=code' )
+			);
+		}
 
 		/*
 		 * Show section for private Bitbucket repositories.
@@ -582,8 +601,8 @@ class Settings extends Base {
 			'branch_switch',
 			'github_access_token',
 			'github_enterprise_token',
-			'bitbucket_username',
-			'bitbucket_password',
+			'bitbucket_consumer_key',
+			'bitbucket_consumer_secret'
 		);
 
 		array_filter( $always_unset,
@@ -596,6 +615,8 @@ class Settings extends Base {
 			'github_enterprise' => 'github_enterprise_token',
 			'gitlab'            => 'gitlab_access_token',
 			'gitlab_enterprise' => 'gitlab_enterprise_token',
+			'bitbucket_consumer_key',
+			'bitbucket_consumer_secret',
 		);
 
 		array_filter( $auth_required_unset,
@@ -713,7 +734,35 @@ class Settings extends Base {
 	 * Print the Bitbucket user/pass text.
 	 */
 	public function print_section_bitbucket_username() {
-		esc_html_e( 'Enter your personal Bitbucket username and password.', 'github-updater' );
+		$api_key = get_site_option( 'github_updater_api_key' );
+		$api_url = add_query_arg( array(
+			'action' => 'github-updater-bitbucket'
+		), admin_url( 'admin-ajax.php' ) );
+		?>
+		<p>
+			<?php esc_html_e( 'Create your own Bitbucket OAuth consumer with the following settings:', 'github-updater' ); ?>
+			<br>
+			Name: Any <br>
+			Description: Any <br>
+			Callback URL: <span style="font-family:monospace;"><?php echo $api_url ?></span> <br>
+			Permissions:
+			<ul style="padding: 0 0 0 1em; list-style: circle;">
+				<li>
+					Repositories:
+					<ul style="padding: 0 0 0 3em; list-style: square;">
+						<li>Read</li>
+					</ul>
+				</li>
+				<li>
+					Webhooks:
+					<ul style="padding: 0 0 0 3em; list-style: square;">
+						<li>Read and write</li>
+					</ul>
+				</li>
+			</ul>
+		</p>
+		<hr>
+		<?php
 	}
 
 	/**
@@ -798,6 +847,21 @@ class Settings extends Base {
 	}
 
 	/**
+	 * Get the settings option array and print one of its values.
+	 * For setting up auth token
+	 *
+	 * @param $args
+	 */
+	public function token_callback_button( $args ) {
+		$name = isset( parent::$options[ $args['id'] ] ) ? esc_attr( parent::$options[ $args['id'] ] ) : '';
+		?>
+		<label for="<?php esc_attr( $args['id'] ); ?>">
+			<a class="ghu-callback-button button" href="#" onclick="window.open('<?php esc_attr_e( $args['url'] ); ?>', '<?php esc_attr_e( $args['title'] ); ?>', 'height=800,width=1100')"><?php esc_attr_e( $args['title'] ); ?></a>
+		</label>
+		<?php
+	}
+
+	/**
 	 * Update settings for single site or network activated.
 	 *
 	 * @link http://wordpress.stackexchange.com/questions/64968/settings-api-in-multisite-missing-update-message
@@ -829,8 +893,8 @@ class Settings extends Base {
 		$options          = parent::$options;
 		$non_repo_options = array(
 			'github_access_token',
-			'bitbucket_username',
-			'bitbucket_password',
+			'bitbucket_consumer_key',
+			'bitbucket_consumer_secret',
 			'gitlab_access_token',
 			'gitlab_enterprise_token',
 			'branch_switch',

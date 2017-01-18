@@ -167,6 +167,7 @@ class Base {
 		add_action( 'init', array( &$this, 'set_options_filter' ) );
 		add_action( 'wp_ajax_github-updater-update', array( &$this, 'ajax_update' ) );
 		add_action( 'wp_ajax_nopriv_github-updater-update', array( &$this, 'ajax_update' ) );
+		add_action( 'wp_ajax_github-updater-bitbucket', array( &$this, 'ajax_bitbucket' ) );
 
 		// Load hook for shiny updates Bitbucket authentication headers.
 		$bitbucket = new Bitbucket_API( new \stdClass() );
@@ -270,6 +271,23 @@ class Base {
 		}
 
 		return true;
+	}
+
+	/**
+	 * AJAX endpoint for Bitbucket token.
+	 */
+	public function ajax_bitbucket() {
+		if(isset($_GET['code'])) {
+			$code = filter_input(INPUT_GET, 'code', FILTER_SANITIZE_STRING);
+			self::$options['bitbucket_auth_token'] = $code;
+			update_site_option( 'github_updater', self::$options );
+			?>
+			<script>
+				window.opener.location.reload();
+				window.close();
+			</script>
+			<?php
+		}
 	}
 
 	/**
