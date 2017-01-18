@@ -277,8 +277,8 @@ class Base {
 	 * AJAX endpoint for Bitbucket token.
 	 */
 	public function ajax_bitbucket() {
-		if(isset($_GET['code'])) {
-			$code = filter_input(INPUT_GET, 'code', FILTER_SANITIZE_STRING);
+		if( isset( $_GET['code'] ) ) {
+			$code = filter_input( INPUT_GET, 'code', FILTER_SANITIZE_STRING );
 			self::$options['bitbucket_auth_token'] = $code;
 			update_site_option( 'github_updater', self::$options );
 			?>

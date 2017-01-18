@@ -90,7 +90,7 @@ class Bitbucket_API extends API {
 		if ( $this->validate_response( $response ) || ! is_array( $response ) ) {
 			return false;
 		}
-		
+
 		$response['dot_org'] = $this->get_dot_org_data();
 		$this->set_file_info( $response );
 
@@ -421,7 +421,7 @@ class Bitbucket_API extends API {
 		}
 
 		if ( $bitbucket_private || $bitbucket_private_install ) {
-			$grant_type = isset(self::$options['bitbucket_refresh_token']) ? 'refresh_token' : 'authorization_code';
+			$grant_type = isset( self::$options['bitbucket_refresh_token'] ) ? 'refresh_token' : 'authorization_code';
 			$post_fields = array(
 				"grant_type" => $grant_type, 
 				( ( $grant_type == 'authorization_code' ) ? 'code' : $grant_type ) => 
